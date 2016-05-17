@@ -389,9 +389,7 @@ class IMAP():
                     email_parsed = self.msg_class(
                         folder=self.selected_folder, uid=uid, flags=flags,
                         email_obj=email_obj, imap_obj=self)
-                    emails.append(email_parsed)
-
-        return emails
+                    yield email_parsed
 
     @is_logged
     def mark(self, tags, uid):
