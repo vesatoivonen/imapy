@@ -368,8 +368,7 @@ class IMAP():
                     # Check for email flags/uid added after email contents
                     if (i + 1) < total:
                         email_id += b' ' + data[i + 1]
-                    email_id = utils.b_to_str(email_id)
-                    raw_email = utils.b_to_str(raw_email)
+                    email_id = email_id.decode('ascii')
                     # get UID
                     uid_match = re.match('.*UID (?P<uid>[0-9]+)', email_id)
                     uid = uid_match.group('uid')
@@ -385,7 +384,7 @@ class IMAP():
                                 flags.append(f.lower().lstrip('\\'))
                             else:
                                 flags.append(f)
-                    email_obj = email.message_from_string(raw_email)
+                    email_obj = email.message_from_bytes(raw_email)
                     email_parsed = self.msg_class(
                         folder=self.selected_folder, uid=uid, flags=flags,
                         email_obj=email_obj, imap_obj=self)
