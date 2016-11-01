@@ -12,6 +12,7 @@
 
 import re
 import six
+from encodings import search_function as find_codec
 from email.header import decode_header
 from bs4.dammit import EncodingDetector
 from . import utils
@@ -43,20 +44,13 @@ class EmailMessage(CaseInsensitiveDict):
         self['attachments'] = []
         self.parse()
 
-    def clean_value(self, value, encoding):
+    def clean_value(self, value, encoding, fallback='utf-8'):
         """Converts value to utf-8 encoding"""
-        if six.PY2:
-            if encoding not in ['utf-8', None]:
-                return value.decode(encoding).encode('utf-8')
-        elif six.PY3:
-            # in PY3 'decode_headers' may return both byte and unicode
-            if isinstance(value, bytes):
-                if encoding in ['utf-8', None]:
-                    return utils.b_to_str(value)
-                else:
-                    return value.decode(encoding)
-
-        return value
+        if isinstance(value, six.text_type):
+            # Already Unicode
+            return value
+        encoding = encoding if encoding and find_codec(encoding) else fallback
+        return value.decode(encoding, errors='replace')
 
     def _normalize_string(self, text):
         '''Removes excessive spaces, tabs, newlines, etc.'''
@@ -117,8 +111,8 @@ class EmailMessage(CaseInsensitiveDict):
         if not self.email_obj.is_multipart():
             charset = self.email_obj.get_content_charset() \
                 or self.email_obj.get_charset()
-            text = self.email_obj.get_payload(decode=True) \
-                .decode(charset or fallback_encoding, errors='replace')
+            charset = charset if charset and find_codec(charset) else fallback_encoding
+            text = self.email_obj.get_payload(decode=True).decode(charset, errors='replace')
             self['text'].append(
                 {
                     'text': text,
@@ -140,13 +134,12 @@ class EmailMessage(CaseInsensitiveDict):
                     or part.get_charset()
                 if content_type == 'text/plain':
                     # Convert text
-                    text = part.get_payload(decode=True) \
-                        .decode(charset or fallback_encoding, errors='replace')
+                    charset = charset if charset and find_codec(charset) else fallback_encoding
+                    text = part.get_payload(decode=True).decode(charset, errors='replace')
                     self['text'].append(
                         {
                             'text': text,
-                            'text_normalized':
-                                self._normalize_string(text),
+                            'text_normalized': self._normalize_string(text),
                             'links': self._get_links(text)
                         }
                     )
@@ -156,8 +149,8 @@ class EmailMessage(CaseInsensitiveDict):
                     if not charset:
                         charset = EncodingDetector \
                             .find_declared_encoding(html, is_html=True)
-                    self['html'].append(
-                        html.decode(charset or fallback_encoding, errors='replace'))
+                    charset = charset if charset and find_codec(charset) else fallback_encoding
+                    self['html'].append(html.decode(charset, errors='replace'))
                 else:
                     try:
                         data = part.get_payload(decode=True)
