@@ -132,7 +132,8 @@ class EmailMessage(CaseInsensitiveDict):
                 content_type = part.get_content_type()
                 charset = part.get_content_charset() \
                     or part.get_charset()
-                if content_type == 'text/plain':
+                is_attachment = part.get_content_disposition() == 'attachment'
+                if content_type == 'text/plain' and not is_attachment:
                     # Convert text
                     charset = charset if charset and find_codec(charset) else fallback_encoding
                     text = part.get_payload(decode=True).decode(charset, errors='replace')
@@ -143,7 +144,7 @@ class EmailMessage(CaseInsensitiveDict):
                             'links': self._get_links(text)
                         }
                     )
-                elif content_type == 'text/html':
+                elif content_type == 'text/html' and not is_attachment:
                     # convert html
                     html = part.get_payload(decode=True)
                     if not charset:
